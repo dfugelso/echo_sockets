@@ -1,5 +1,8 @@
 '''
-Server side socket handler. Echos back all input back to the client. Handles multiple clients using select.
+
+echo_server.py
+
+Server side socket handler. Echoes back all input back to the client. Handles multiple clients using select.
 
 Dave Fugelso January, 2015
 
@@ -16,22 +19,23 @@ class server (object):
         Allow configurable IP address and port number.
         '''
         self.ip = ip
-        self.portNUmber = portNumber
+        self.portNumber = portNumber
         self.bytesReceived = 0
         self.bytesSent = 0
+        self.server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
+        self.server_socket.bind((self.ip, self.portNumber))
         
     def startServer (self):
         '''
         Bind and accept connections.
         '''
-        server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
-        server_socket.bind(('127.0.0.1', 50000))
-        server_socket.listen(1)
-        conn, addr = server_socket.accept()
+
+        self.server_socket.listen(1)
+        conn, addr = self.server_socket.accept()
         self.handleConnection(conn, addr)
         
         
-    def handlConnection (conn, addr):
+    def handleConnection (self, conn, addr):
         while True:
             str = conn.recv(1024) 
             if not str:
@@ -47,7 +51,7 @@ class server (object):
          
         
 if __name__ == "__main__":
-    s = server()
+    s = server('127.0.0.1', 50000)
     s.startServer()
    
  
