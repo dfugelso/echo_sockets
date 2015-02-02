@@ -9,50 +9,13 @@ Dave Fugelso January, 2015
 '''
 
 import socket
-
-class server (object):
-    ''' 
-    Server class to store data and do unit testing.
-    '''
-    def __init__ (self, ip, portNumber):
-        '''
-        Allow configurable IP address and port number.
-        '''
-        self.ip = ip
-        self.portNumber = portNumber
-        self.bytesReceived = 0
-        self.bytesSent = 0
-        self.server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
-        self.server_socket.bind((self.ip, self.portNumber))
-        
-    def startServer (self):
-        '''
-        Bind and accept connections.
-        '''
-
-        self.server_socket.listen(1)
-        conn, addr = self.server_socket.accept()
-        self.handleConnection(conn, addr)
-        print "Done. Server closing."
-        
-        
-    def handleConnection (self, conn, addr):
-        while True:
-            str = conn.recv(1024) 
-            if not str:
-                break
-            self.bytesReceived += len(str)
-            if conn.sendall(str):
-                break
-            self.bytesSent += len(str)
-        print 'Connection closed'
-        print 'Bytes received: {}'.format(self.bytesReceived)
-        print 'Bytes sent: {}'.format(self.bytesSent)
-         
 import sys
 
 
 def server(log_buffer=sys.stderr):
+    '''
+    Listen on a port number and echo back incoming messages.
+    '''
     # set an address for our server
     address = ('127.0.0.1', 10000)
     sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
@@ -61,8 +24,7 @@ def server(log_buffer=sys.stderr):
     # log that we are building a server
     print >>log_buffer, "making a server on {0}:{1}".format(*address)
 
-    # TODO: bind your new sock 'sock' to the address above and begin to listen
-    #       for incoming connections
+    # Bind socket of local host and port number
     sock.bind(address)
 
     try:
@@ -71,11 +33,7 @@ def server(log_buffer=sys.stderr):
         while True:
             print >>log_buffer, 'waiting for a connection'
 
-            # TODO: make a new socket when a client connects, call it 'conn',
-            #       at the same time you should be able to get the address of
-            #       the client so we can report it below.  Replace the
-            #       following line with your code. It is only here to prevent
-            #       syntax errors
+            # Listen for connection
             sock.listen(1)
             conn, addr = sock.accept()
             try:
@@ -99,7 +57,7 @@ def server(log_buffer=sys.stderr):
 
                 conn.close()
                 
-
+    # Note: This doesn't work on Windows 7/ Tested on Linux and works like a champ
     except KeyboardInterrupt:
         print >>log_buffer, 'Done with server. Close server socket and exit.'
         sock.close()

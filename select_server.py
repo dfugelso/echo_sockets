@@ -1,14 +1,19 @@
 '''
 
-echo_server.py
+select_server.py
 
-Server side socket handler. Echoes back all input back to the client. Handles multiple clients using select.
+This builds on echo_server.py to add select processing to handle multiple clients.
+
+I followed the example from http://pymotw.com/2/select/ to do this.
 
 Dave Fugelso January, 2015
 
 '''
 
+import select
 import socket
+import sys
+import Queue
 
 class server (object):
     ''' 
@@ -20,8 +25,6 @@ class server (object):
         '''
         self.ip = ip
         self.portNumber = portNumber
-        self.bytesReceived = 0
-        self.bytesSent = 0
         self.server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
         self.server_socket.bind((self.ip, self.portNumber))
         
@@ -30,86 +33,75 @@ class server (object):
         Bind and accept connections.
         '''
 
-        self.server_socket.listen(1)
-        conn, addr = self.server_socket.accept()
-        self.handleConnection(conn, addr)
-        print "Done. Server closing."
-        
-        
-    def handleConnection (self, conn, addr):
-        while True:
-            str = conn.recv(1024) 
-            if not str:
-                break
-            self.bytesReceived += len(str)
-            if conn.sendall(str):
-                break
-            self.bytesSent += len(str)
-        print 'Connection closed'
-        print 'Bytes received: {}'.format(self.bytesReceived)
-        print 'Bytes sent: {}'.format(self.bytesSent)
-         
-import sys
+        try:
+            self.server_socket.listen(1)
+            
+            # Create server, outputs, and queues for input into select
+            inputs = [ self.server_socket ]
+            outputs = [ ]
+            message_queues = {}
 
-
-def server(log_buffer=sys.stderr):
-    # set an address for our server
-    address = ('127.0.0.1', 10000)
-    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-    # To do miltiple clients w/o threads set tonon blocking
-    sock.setblocking(0)
-    
-    # log that we are building a server
-    print >>log_buffer, "making a server on {0}:{1}".format(*address)
-
-    # Bind
-    sock.bind(address)
-
-    try:
-        # the outer loop controls the creation of new connection sockets. The
-        # server will handle each incoming connection one at a time.
-        while True:
-            print >>log_buffer, 'waiting for a connection'
-
-            # TODO: make a new socket when a client connects, call it 'conn',
-            #       at the same time you should be able to get the address of
-            #       the client so we can report it below.  Replace the
-            #       following line with your code. It is only here to prevent
-            #       syntax errors
-            sock.listen(1)
-            conn, addr = sock.accept()
-            try:
-                print >>log_buffer, 'connection - {0}:{1}'.format(*addr)
-
-                # the inner loop will receive messages sent by the client in
-                # buffers.  When a complete message has been received, the
-                # loop will exit
-                while True:
-                    data = conn.recv(16) 
-                    if not data:
-                        break
-
-                    print >>log_buffer, 'received "{0}"'.format(data)
-
-                    if conn.sendall(data):
-                        break
-
-            finally:
-                print >>log_buffer, 'Done with this client. Close client socket and exit.'
-
-                conn.close()
+            # Loop and on inputs not empty and block on select callable
+            while inputs:
+                #block on incoming
+                readable, writable, exceptional = select.select(inputs, outputs, inputs)
                 
+                # Check if there are readables
+                for s in readable:
+                    # Check for new connection
+                    if s is self.server_socket:
+                        conn, addr =  s.accept()
+                        print 'new connection from', addr
+                        conn.setblocking(0)
+                        #Add connection to inputs list and block on select
+                        inputs.append(conn)
+                        message_queues[conn] = Queue.Queue()
+                    else:
+                        str = s.recv(1024)
+                        if str:
+                            # A readable client socket has data
+                            print 'received : {}'.format(str)
+                            #I tested writing the echo write here... works fine as well
+                            message_queues[s].put(str)
+                            if s not in outputs:
+                                outputs.append(s)  
+                        else:
+                            print 'A client socket closed.'
+                            if s in outputs:
+                                outputs.remove(s)
+                            inputs.remove(s)
+                            s.close()
+                            del message_queues[s]
+                
+                # Handle the writable list from select                
+                for s in writable:
+                    try:
+                        msg = message_queues[s].get_nowait()
+                    except Queue.Empty:
+                        outputs.remove(s)
+                    else:
+                        print 'Sending: {}'.format(msg)
+                        s.sendall(msg)            
+                 
+                #And the exceptions
+                for s in exceptional:
+                    print 'Close out socket.'
+                    inputs.remove(s)
+                    if s in outputs:
+                        outputs.remove(s)
+                    s.close()
+                    del message_queues[s]
+            
+           
+        except KeyboardInterrupt:
+            print "Done. Server closing."
+            self.server_socket.close()       
 
-    except KeyboardInterrupt:
-        print >>log_buffer, 'Done with server. Close server socket and exit.'
-        sock.close()
+         
+if __name__ == "__main__":
+    s = server('127.0.0.1', 50000)
+    s.startServer()
 
-
-if __name__ == '__main__':
-    server()
-    sys.exit(0)        
 
    
  

@@ -20,7 +20,7 @@ class client (object):
         self.portNumber = portNumber
         self.bytesReceived = 0
         self.bytesSent = 0
-        self.connected = False
+        self.connected = True
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
         self.client_socket.connect((ip, portNumber))
         
@@ -32,22 +32,19 @@ class client (object):
         '''
         Send a message.
         '''
-        sent = self.client_socket.sendall(msg)
-        if sent == 0:
+        if self.client_socket.sendall(msg):
             self.connected= False
-        self.bytesSent += sent
+        self.bytesSent += len(msg)
         
         
     def read(self):
-        msg = self.client_socket.rec()
+        msg = self.client_socket.recv(1024)
         if msg == '':
+            print 'closing?'
             self.connected = False
         self.bytesRecieved = len (msg)
         return msg
         
-        
-        
-         
         
 if __name__ == "__main__":
     c = client('127.0.0.1', 50000)
