@@ -9,61 +9,48 @@ Dave Fugelso January, 2015
 '''
 
 import socket
+import sys
+                   
 
-class client (object):
-    ''' 
-    Server class to store data and do unit testing.
-    '''
-    def __init__ (self, ip, portNumber):
-        '''
-        Allow configurable IP address and port number.
-        '''
-        self.ip = ip
-        self.portNumber = portNumber
-        self.bytesReceived = 0
-        self.bytesSent = 0
-        self.connected = False
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
-        self.client_socket.connect((ip, portNumber))
-        
-    @property
-    def Connected (self):
-        return self.connected
-        
-    def send (self, msg):
-        '''
-        Send a message.
-        '''
-        sent = self.client_socket.sendall(msg)
-        if sent == 0:
-            self.connected= False
-        self.bytesSent += sent
-        
-        
-    def read(self):
-        msg = self.client_socket.rec()
-        if msg == '':
-            self.connected = False
-        self.bytesRecieved = len (msg)
-        return msg
-        
-        
-        
-         
-        
-if __name__ == "__main__":
-    c = client('127.0.0.1', 50000)
+def client(msg, log_buffer=sys.stderr):
+    server_address = ('localhost', 10000)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
+    print >>log_buffer, 'connecting to {0} port {1}'.format(*server_address)
+    try:
+        sock.connect(server_address)
+    except Exception, e:
+        print 'Failed  to connect to: %s:%d. Exception: %s' % (address, port, `e`)
 
-        
-    while True:
-        if not c.Connected:
-            print 'No server connection'
-            break
-        input = raw_input ('Enter a message to send: ')
-        if input == 'Q' or input == 'Quit':
-            break
-        c.send(input)
-        print c.read()
-   
- 
+
+    # this try/finally block exists purely to allow us to close the socket
+    # when we are finished with it
+    try:
+        print >>log_buffer, 'sending "{0}"'.format(msg)
+        if not sock.sendall(msg):
+            #get return message
+            msglen = len(msg)
+            returnmsglen = 0
+            while True:
+                chunk = sock.recv (16)
+                if not chunk:
+                    break
+                print >>log_buffer, 'received "{0}"'.format(chunk) 
+                returnmsglen += len(chunk)
+                if  len(chunk) < 16 or returnmsglen == msglen:
+                    break
+
+
+    finally:
+        print >>log_buffer, 'closing socket'
+        sock.close()
+
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        usg = '\nusage: python echo_client.py "this is my message"\n'
+        print >>sys.stderr, usg
+        sys.exit(1)
+
+    msg = sys.argv[1]
+    client(msg)
 

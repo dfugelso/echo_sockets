@@ -57,12 +57,14 @@ def server(log_buffer=sys.stderr):
     address = ('127.0.0.1', 10000)
     sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM,socket.IPPROTO_IP)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
- 
+
+    # To do miltiple clients w/o threads set tonon blocking
+    sock.setblocking(0)
+    
     # log that we are building a server
     print >>log_buffer, "making a server on {0}:{1}".format(*address)
 
-    # TODO: bind your new sock 'sock' to the address above and begin to listen
-    #       for incoming connections
+    # Bind
     sock.bind(address)
 
     try:
